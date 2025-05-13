@@ -84,3 +84,27 @@ export const DELETE_CARD = gql`
     }
   }
 `
+
+export const UPDATE_CARD = gql`
+  mutation UpdateCard($input: UpdateCardInput!) {
+    updateCard(input: $input) {
+      card {
+        id
+        title
+        current_phase {
+          name
+        }
+        createdAt
+        url
+      }
+    }
+  }
+`
+
+export const UPDATE_CARD_FIELD = gql`
+  mutation UpdateCardField($input: UpdateCardFieldInput!) {
+    updateCardField(input: $input) {
+      success
+    }
+  }
+`
