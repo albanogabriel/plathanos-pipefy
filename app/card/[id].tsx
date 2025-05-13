@@ -1,8 +1,9 @@
 // app/card/[id].tsx
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal'
-import { DELETE_CARD, GET_CARD_DETAILS } from '@/src/graphql/queries'
+import { EditCardModal } from '@/components/EditCardModal'
+import { DELETE_CARD, GET_CARD_DETAILS, UPDATE_CARD } from '@/src/graphql/queries'
 import { useMutation, useQuery } from '@apollo/client'
-import { Entypo, Ionicons } from '@expo/vector-icons' // Importe o pacote de ícones
+import { Entypo, Ionicons } from '@expo/vector-icons'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useState } from 'react'
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
@@ -11,6 +12,7 @@ export default function CardDetailScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams()
   const [isShowingConfirmModal, setIsShowingConfirmModal] = useState(false)
+  const [isShowingEditModal, setIsShowingEditModal] = useState(false)
 
   const { loading, error, data } = useQuery(GET_CARD_DETAILS, {
     variables: { id },
@@ -24,7 +26,7 @@ export default function CardDetailScreen() {
       Alert.alert('Sucesso', 'Card deletado com sucesso!', [
         {
           text: 'OK',
-          onPress: () => router.back(), // Redireciona para a homepage
+          onPress: () => router.back(),
         },
       ])
     },
@@ -34,8 +36,23 @@ export default function CardDetailScreen() {
     refetchQueries: ['allCards'],
   })
 
+  const [updateCard] = useMutation(UPDATE_CARD, {
+    onCompleted: () => {
+      Alert.alert('Sucesso', 'Card atualizado com sucesso!')
+      setIsShowingEditModal(false)
+    },
+    onError: (error) => {
+      Alert.alert('Erro', `Falha ao atualizar card: ${error.message}`)
+    },
+    refetchQueries: [{ query: GET_CARD_DETAILS, variables: { id } }, 'allCards'],
+  })
+
   const handleDelete = () => {
     setIsShowingConfirmModal(true)
+  }
+
+  const handleEdit = () => {
+    setIsShowingEditModal(true)
   }
 
   const confirmDelete = () => {
@@ -43,8 +60,18 @@ export default function CardDetailScreen() {
     deleteCard()
   }
 
+  const handleSaveEdit = (updatedData: { title: string }) => {
+    updateCard({
+      variables: {
+        input: {
+          id,
+          title: updatedData.title,
+        },
+      },
+    })
+  }
+
   if (loading) return <Text>Carregando...</Text>
-  // if (error) return <Text>Erro: {error.message}</Text>
 
   if (error)
     return (
@@ -68,7 +95,11 @@ export default function CardDetailScreen() {
               <Ionicons name="arrow-back" size={24} color="black" />
             </TouchableOpacity>
           ),
-          headerRight: () => <Entypo name="pencil" size={24} color="red" />,
+          headerRight: () => (
+            <TouchableOpacity onPress={handleEdit} style={{ marginRight: 15 }}>
+              <Entypo name="pencil" size={24} color="black" />
+            </TouchableOpacity>
+          ),
         }}
       />
 
@@ -80,6 +111,14 @@ export default function CardDetailScreen() {
         message="Tem certeza que deseja deletar este card?"
       />
 
+      <EditCardModal
+        visible={isShowingEditModal}
+        onSave={handleSaveEdit}
+        onCancel={() => setIsShowingEditModal(false)}
+        initialTitle={card?.title}
+        initialUrl={card?.url}
+      />
+
       <View style={styles.detailContainer}>
         <Text style={styles.title}>{card?.title}</Text>
         <Text style={styles.detail}>Fase: {card?.current_phase?.name || 'Não especificada'}</Text>
@@ -88,9 +127,12 @@ export default function CardDetailScreen() {
         </Text>
         <Text style={styles.detail}>URL: {card?.url}</Text>
 
-        {/* Botão de deletar no corpo da tela também */}
+        <TouchableOpacity style={styles.editButtonContainer} onPress={handleEdit}>
+          <Text style={styles.deleteButtonText}>Editar</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.deleteButtonContainer} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Deletar Card</Text>
+          <Text style={styles.deleteButtonText}>Deletar</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -158,6 +200,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 10,
     color: '#555',
+  },
+  editButtonContainer: {
+    marginTop: 20,
+    backgroundColor: '#444444',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   deleteButtonContainer: {
     marginTop: 20,
